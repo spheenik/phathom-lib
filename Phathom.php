@@ -47,15 +47,15 @@ class Phathom {
         }
     }
     
-    private static function wrapFunction($name) {
-    	if (!isset(self::$wrappedFunctions[$name])) {
-    		$that = get_called_class();
-    		if (!method_exists($that, $name."Rule")) {
-    			throw new Exception("No Rule function for '$name'");
+    private static function wrapFunction($calledClass, $name) {
+    	$fullName = $calledClass."|".$name;
+    	if (!isset(self::$wrappedFunctions[$fullName])) {
+    		if (!method_exists($calledClass, $name."Rule")) {
+    			throw new Exception("No Rule function in '$calledClass' for '$name'");
     		}
-    		self::$wrappedFunctions[$name] = function(Context $c) use ($that, $name) {
+    		self::$wrappedFunctions[$fullName] = function(Context $c) use ($calledClass, $name) {
     			$c->logTryMatch("rule", $name);
-    			$f = call_user_func(array($that, $name."Rule"));
+    			$f = call_user_func(array($calledClass, $name."Rule"));
     			$c->enter($name);
     			$result = $f($c);
     			$c->logMatchResult("rule", $name, $result);
@@ -63,7 +63,7 @@ class Phathom {
     			return $result;
     		};
     	}
-    	return self::$wrappedFunctions[$name];
+    	return self::$wrappedFunctions[$fullName];
     }
     
     public static function oneOf() {
@@ -192,7 +192,7 @@ class Phathom {
     }
     
     public static function __callStatic($name, $parameters) {
-    	return self::wrapFunction($name);
+    	return self::wrapFunction(get_called_class(), $name);
     }
     
     public static function run($rule, Context $c) {
